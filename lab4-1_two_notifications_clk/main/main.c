@@ -4,7 +4,7 @@
  * This file is useful for ESP32 Design course.                             *
  *                                                                          *
  ****************************************************************************/
-
+ 
 /**
  * @file lab3-1_main.c
  * @author Fabrice Muller
@@ -38,19 +38,17 @@ static const char* TAG = "SEM";
 /* Task Priority */
 const uint32_t TIMER_TASK_PRIORITY = 5;
 const uint32_t INC_TABLE_TASK_PRIORITY = 3;
-const uint32_t DEC_TABLE_TASK_PRIORITY = 3;
-const uint32_t INS_TABLE_TASK_PRIORITY = 4;
+const uint32_t DEC_TABLE_TASK_PRIORITY = 4;
 
 /* Communications */
 SemaphoreHandle_t xSemClk_Inc;
 SemaphoreHandle_t xSemClk_Dec;
-SemaphoreHandle_t xSemMutex;
+
 
 /* Tasks */
 void vTaskTimer(void *pvParameters);
 void vTaskIncTable(void *pvParameters);
 void vTaskDecTable(void *pvParameters);
-void vTaskInspector(void *pvParameters);
 
 /* Datas */
 int Table[TABLE_SIZE];
@@ -101,39 +99,17 @@ void vTaskDecTable(void *pvParameters) {
 	}
 }
 
-void vTaskInspector(void *pvParameters){
-	int reference;
-	bool error;
-	while(1){
-		xSemaphoreTake(xSemMutex, portMAX_DELAY);
-		DISPLAY("Task Inspector is checking");
-		reference = Table[0];
-		error = false;
-		for(int i=0; i<TABLE_SIZE-1; i++){
-			COMPUTE_IN_TIME_US(100);
-			if(Table[i]!=(reference+i)) error = true;
-		}
-		DISPLAY("Task Inspector ended its checking");
 
-		if(error == true){
-			DISPLAY("Consistency error in the Table variable");
-			exit(1);
-		}
-		xSemaphoreGive(xSemMutex);
-	}
-}
 
 /* Main function */
 void app_main(void) {
 
 	/* Init Table */
-	//memset(Table, 0, TABLE_SIZE*sizeof(int));
-	for(int i=0; i<TABLE_SIZE;i++) Table[i] = i;
+	memset(Table, 0, TABLE_SIZE*sizeof(int));
 
 	/* Create Binary semaphore */
 	xSemClk_Inc = xSemaphoreCreateBinary();
 	xSemClk_Dec = xSemaphoreCreateBinary();
-	xSemMutex = xSemaphoreCreateBinary();
 
 
 	/* Stop scheduler */
@@ -142,8 +118,7 @@ void app_main(void) {
 	/* Create Tasks */
 	xTaskCreatePinnedToCore(vTaskTimer,	"vTaskTimer", STACK_SIZE,	(void*)"vTaskTimer", TIMER_TASK_PRIORITY,	NULL,CORE_0);					
 	xTaskCreatePinnedToCore(vTaskIncTable,	"vTaskIncTable", STACK_SIZE,	(void*)"vTaskIncTable", INC_TABLE_TASK_PRIORITY,	NULL,CORE_0);					
-	xTaskCreatePinnedToCore(vTaskDecTable,	"vTaskDecTable", STACK_SIZE,	(void*)"vTaskDecTable", DEC_TABLE_TASK_PRIORITY,	NULL,CORE_0);				
-	xTaskCreatePinnedToCore(vTaskInspector, "vTaskInspector", STACK_SIZE, (void*)"vTaskTimer", INS_TABLE_TASK_PRIORITY, NULL, CORE_0);	
+	xTaskCreatePinnedToCore(vTaskDecTable,	"vTaskDecTable", STACK_SIZE,	(void*)"vTaskDecTable", DEC_TABLE_TASK_PRIORITY,	NULL,CORE_1);					
 
 
 	/* Continue scheduler */
