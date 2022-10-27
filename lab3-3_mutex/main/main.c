@@ -44,7 +44,7 @@ const uint32_t INS_TABLE_TASK_PRIORITY = 4;
 /* Communications */
 SemaphoreHandle_t xSemClk_Inc;
 SemaphoreHandle_t xSemClk_Dec;
-
+SemaphoreHandle_t xSemMutex;
 
 /* Tasks */
 void vTaskTimer(void *pvParameters);
@@ -105,20 +105,20 @@ void vTaskInspector(void *pvParameters){
 	int reference;
 	bool error;
 	while(1){
-		if(xSemaphoreTake(xSemClk_Dec, portMAX_DELAY)){
 			DISPLAY("Task Inspector is checking");
 			reference = Table[0];
 			error = false;
+			xSemaphoreTake(xSemMutex, portMAX_DELAY);
 			for(int i=0; i<TABLE_SIZE-1; i++){
 				COMPUTE_IN_TIME_US(100);
 				if(Table[i]!=(reference+i)) error = true;
 			}
 			DISPLAY("Task Inspector ended its checking");
+			xSemaphoreGive(xSemMutex);
 			if(error == true){
 				DISPLAY("Consistency error in the Table variable");
 				exit(1);
 			}
-		}
 	}
 }
 
@@ -132,6 +132,7 @@ void app_main(void) {
 	/* Create Binary semaphore */
 	xSemClk_Inc = xSemaphoreCreateBinary();
 	xSemClk_Dec = xSemaphoreCreateBinary();
+	xSemMutex = xSemaphoreCreateBinary();
 
 
 	/* Stop scheduler */
