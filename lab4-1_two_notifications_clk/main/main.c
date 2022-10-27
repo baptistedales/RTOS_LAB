@@ -40,6 +40,10 @@ const uint32_t TIMER_TASK_PRIORITY = 5;
 const uint32_t INC_TABLE_TASK_PRIORITY = 3;
 const uint32_t DEC_TABLE_TASK_PRIORITY = 4;
 
+TaskHandle_t timerHandler;
+TaskHandle_t incHandler;
+TaskHandle_t decHandler;
+
 /* Communications */
 SemaphoreHandle_t xSemClk_Inc;
 SemaphoreHandle_t xSemClk_Dec;
@@ -62,8 +66,8 @@ void vTaskTimer(void *pvParameters) {
 		COMPUTE_IN_TIME_MS(20);
 		DISPLAY("Task timer : Give Sem");
 		/*Using Semaphore */
-		xSemaphoreGive(xSemClk_Inc);
-		xSemaphoreGive(xSemClk_Dec);
+		//xSemaphoreGive(xSemClk_Inc);
+		//xSemaphoreGive(xSemClk_Dec);
 		
 	}
 }
@@ -71,31 +75,32 @@ void vTaskTimer(void *pvParameters) {
 void vTaskIncTable(void *pvParameters) {
 	uint32_t activationNumber =0;
 	while (1){
-		if(xSemaphoreTake(xSemClk_Inc, portMAX_DELAY)){
-			DISPLAY("IncTable");
-			if (activationNumber==0){
-				for (int i=0; i<TABLE_SIZE-1; i++){
-					Table[i]+=5;
-				}
-				COMPUTE_IN_TIME_MS(50);
-				activationNumber=4;
+		xTaskNotifyGive(incHandler);
+		DISPLAY("IncTable");
+		if (activationNumber==0){
+			for (int i=0; i<TABLE_SIZE-1; i++){
+				Table[i]+=5;
 			}
-
-			else activationNumber-=1;
+			COMPUTE_IN_TIME_MS(50);
+			activationNumber=4;
 		}
+
+		else activationNumber-=1;
+		xTaskNotifyGive(incHandler);
 	}
+
 }
 
 void vTaskDecTable(void *pvParameters) {
 	while (1){
-		if(xSemaphoreTake(xSemClk_Dec, portMAX_DELAY)){
-			DISPLAY("DecTable");
-			for (int i=0; i<TABLE_SIZE-1; i++){
-				Table[i]-=1;
-			}
-			COMPUTE_IN_TIME_MS(50);
-
+		xTaskNotifyGive(decHandler);
+		DISPLAY("DecTable");
+		for (int i=0; i<TABLE_SIZE-1; i++){
+			Table[i]-=1;
 		}
+		COMPUTE_IN_TIME_MS(50);
+		xTaskNotifyGive(decHandler);
+
 	}
 }
 
@@ -116,9 +121,9 @@ void app_main(void) {
 	vTaskSuspendAll();
 
 	/* Create Tasks */
-	xTaskCreatePinnedToCore(vTaskTimer,	"vTaskTimer", STACK_SIZE,	(void*)"vTaskTimer", TIMER_TASK_PRIORITY,	NULL,CORE_0);					
-	xTaskCreatePinnedToCore(vTaskIncTable,	"vTaskIncTable", STACK_SIZE,	(void*)"vTaskIncTable", INC_TABLE_TASK_PRIORITY,	NULL,CORE_0);					
-	xTaskCreatePinnedToCore(vTaskDecTable,	"vTaskDecTable", STACK_SIZE,	(void*)"vTaskDecTable", DEC_TABLE_TASK_PRIORITY,	NULL,CORE_1);					
+	xTaskCreatePinnedToCore(vTaskTimer,	"vTaskTimer", STACK_SIZE,	(void*)"vTaskTimer", TIMER_TASK_PRIORITY,&timerHandler,CORE_0);					
+	xTaskCreatePinnedToCore(vTaskIncTable,	"vTaskIncTable", STACK_SIZE,	(void*)"vTaskIncTable", INC_TABLE_TASK_PRIORITY,&incHandler,CORE_0);					
+	xTaskCreatePinnedToCore(vTaskDecTable,	"vTaskDecTable", STACK_SIZE,	(void*)"vTaskDecTable", DEC_TABLE_TASK_PRIORITY,&decHandler,CORE_1);					
 
 
 	/* Continue scheduler */
